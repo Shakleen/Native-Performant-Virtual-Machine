@@ -28,6 +28,7 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
 * [Enable IOMMU](#enable-iommu)
 * [Dynamic PCIe Binding](#dynamic-pcie-binding)
 * [Creating Windows 11 Virtual Machine](#creating-windows-11-virtual-machine)
+* [Performance Optimizations](#performance-optimizations)
 * [References](#references)
 
 ***
@@ -205,7 +206,7 @@ We're done setting up the hooks for PCI passthrough.
     > **The USB devices passed through will NOT be available on the host at this point.** Have additional mouse and keyboards attached so that you can use the host machine.
 14. Add TPM through `Add New Hardware`.<br><img src="images/screen-captures/vm-setup-tpm.png" alt="SATA Options" style="width:512px;"/>
     > **TPM or Trusted Platform Module** is a hardware chip required to use Windows 11. We're basically emulating this.
-15. (Optional) If you're using an nVidia GPU then you might face [Issue 43](https://passthroughpo.st/apply-error-43-workaround/). 
+15. **(Optional)** If you're using an nVidia GPU then you might face [Issue 43](https://passthroughpo.st/apply-error-43-workaround/). 
     * If you want to use all its features on the VM, you need to hide that the guest machine is a VM. To do this add the following XML portion under `<hyperv>`.
         ```xml
         <features>
@@ -225,20 +226,115 @@ We're done setting up the hooks for PCI passthrough.
             <hyperv>
                 ...
             </hyperv>
-            <kvm>
+            <!-- Add this portion -->
+            <kvm> 
                 <hidden state="on"/>
             </kvm>
             ...
         </features>
         ```
-    * Finally, add the following line to `<feature>`
+    * Finally, append the following line to `<feature>`
         ```xml
         <feature>
             ...
-            <ioapic driver="kvm"/>
+            <ioapic driver="kvm"/> <!-- Add this line -->
         </features>
         ```
 16. Begin Installation.
+
+***
+
+# Performance Optimizations
+
+## CPU Pinning
+This step limits the guest machine to a select few cores of a CPU. This way the guest won't touch the other cores leaving them free for the host machine. 
+
+1. Run `lscpu -e`. This will show you the topology of your CPU. Check my logs [here](logs/lscpu.txt).
+2. You want to pin cores that share the same L3 cache value. I will pin cores 0 to 3.
+3. Add CPU pinning info to the VM XML.
+    ```xml
+    <vcpu placement='static'>4</vcpu>
+    <!-- Insert the portion below -->
+    <cputune>
+        <vcpupin vcpu='0' cpuset='0'/>
+        <vcpupin vcpu='1' cpuset='1'/>
+        <vcpupin vcpu='2' cpuset='2'/>
+        <vcpupin vcpu='3' cpuset='3'/>
+    </cputune>
+    ```
+4. Edit `<cpu>` to include the lines mentioned below:
+
+    ```xml
+    <cpu mode="host-passthrough" check="none" migratable="on">
+        <topology sockets="1" dies="1" cores="4" threads="1"/>
+        <!-- Insert the portion below -->
+        <cache mode="passthrough"/>
+        <feature policy="require" name="topoext"/>
+    </cpu>
+    ```
+
+## CPU Isolation
+This step ensures that when the guest machine is running the host machine won't use the cores being used by the guest machine. We'll achieve this by using hooks.
+
+1. Create [bind_cpu.sh](scripts/cpu_dynamic_isolation/bind_cpu.sh) and place under `/etc/libvirt/hooks/qemu.d/win11/prepare/begin`.
+2. Create [unbind_cpu.sh](scripts/cpu_dynamic_isolation/unbind_cpu.sh) and place under `/etc/libvirt/hooks/qemu.d/win11/release/end`.
+3. Make sure all scripts are executable by running `chmod +x` on them.
+
+## CPU Governor
+This performance tweak14 takes advantage of the CPU frequency scaling governor in Linux.
+
+1. Create [cpu_performance_mode.sh](scripts/cpu_governor_mode/cpu_performance_mode.sh) and place under `/etc/libvirt/hooks/qemu.d/win11/prepare/begin`.
+2. Create [cpu_ondemand_mode.sh](scripts/cpu_governor_mode/cpu_ondemand_mode.sh) and place under `/etc/libvirt/hooks/qemu.d/win11/release/end`.
+3. Make sure all scripts are executable by running `chmod +x` on them.
+
+After adding all required files the directory should look like this
+```
+/etc/libvirt/hooks/
+├── kvm.conf
+├── qemu
+└── qemu.d
+    └── win11
+        ├── prepare
+        │   └── begin
+        │       ├── bind_cpu.sh
+        │       ├── bind_vfio.sh
+        │       └── cpu_performance_mode.sh
+        └── release
+            └── end
+                ├── cpu_ondemand_mode.sh
+                ├── unbind_cpu.sh
+                └── unbind_vfio.sh
+
+6 directories, 8 files
+```
+
+## Huge Pages
+Manjaro handles this by default. So no need to manually set this up.
+
+## HyperV Tweaks
+
+Edit your VM XML to include the following tags: 
+
+```xml
+<features>
+    ...
+    <hyperv>
+      <relaxed state="on"/>
+      <vapic state="on"/>
+      <spinlocks state="on" retries="8191"/>
+      <vendor_id state="on" value="kvm hyperv"/>
+      <!-- Append elements from below -->
+      <vpindex state='on'/>
+      <synic state='on'/>
+      <stimer state='on'/>
+      <reset state='on'/>
+      <frequencies state='on'/>
+    </hyperv>
+    ...
+</features>
+```
+
+More information about these tweaks can be found [here](https://mathiashueber.com/performance-tweaks-gaming-on-virtual-machines/).
 
 # References
 * [PCI Passthrough via OVMF](https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF)
