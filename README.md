@@ -56,7 +56,9 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
     A line saying something like `DMAR: IOMMU enabled` should appear. [Check my log output here.](logs/dmesg-log.txt)
 
 7. If IOMMU is turned on then check for IOMMU groups. Create a script with the contents of [group-ionmmu-hw.sh](scripts/group-iommu-hw.sh). Then execute it.
-    > This script gives you the IOMMU group each hardware in your system belongs to. We pass everything under the same IOMMU group to the guest machine.
+    > This script gives you the IOMMU group each hardware in your system belongs to. We pass everything under the same IOMMU group to the guest machine.  
+    > The output will have multiple lines all following the format shown below:  
+    > IOMMU Group **[GROUP NO]**: **[Bus Address]** Title [0600]: Short Description **[Hardware ID]** (rev **[Revision number]**)
     > 
     > If your GPU and audio driver are in a IOMMU group with something other than the PCIe driver, you need to do an ACS override Patch.
 
@@ -77,3 +79,84 @@ We are going to dynamically bind the **vfio drivers** before the VM starts and u
     > **+x** is basically used to make the file executable by anyone.
 5. Restart libvert services using `sudo systemctl restart libvirtd` to use the new script.
     > **systemctl** is used to manager services in manjaro. **libvirtd** is a service for managing virtual machines. It needs to be restarted so that it can use the new hook helper script.
+
+## Setting up hooks
+
+Let's first get know the important hooks
+```
+# Before a VM is started, before resources are allocated:
+/etc/libvirt/hooks/qemu.d/$vmname/prepare/begin/*
+
+# Before a VM is started, after resources are allocated:
+/etc/libvirt/hooks/qemu.d/$vmname/start/begin/*
+
+# After a VM has started up:
+/etc/libvirt/hooks/qemu.d/$vmname/started/begin/*
+
+# After a VM has shut down, before releasing its resources:
+/etc/libvirt/hooks/qemu.d/$vmname/stopped/end/*
+
+# After a VM has shut down, after resources are released:
+/etc/libvirt/hooks/qemu.d/$vmname/release/end/*
+```
+If we place **an executable script** in one of these directories, the **hook manager** will take care of everything else. So the directory structure will look like the following for `win11` virtual machine:
+```
+/etc/libvirt/hooks/
+├── qemu
+└── qemu.d
+    └── win11
+        ├── prepare
+        │   └── begin
+        └── release
+            └── end
+```
+1. Create this folder structure by executing this 
+    ```bash
+    $ cd /etc/libvirt/hooks 
+    $ sudo mkdir qemu.d && $ cd qemu.d
+    $ sudo mkdir win11 && cd win11
+    $ sudo mkdir prepare prepare/begin release release/end
+    ```
+
+2. Create a file called `kvm.conf` in `/etc/libvirt/hooks` by executing `sudo touch /etc/libvirt/hooks/kvm.conf`.
+3. We will now place the PCIe device ids inside this file in the following format
+    ```
+    ## Virsh devices
+    VIRSH_GPU_VIDEO=pci_0000_01_00_0
+    VIRSH_GPU_AUDIO=pci_0000_01_00_1
+    VIRSH_GPU_USB=pci_0000_0a_00_2
+    VIRSH_GPU_SERIAL=pci_0000_0a_00_3
+    VIRSH_NVME_SSD=pci_0000_04_00_0
+    ```
+    > Make sure to replace the bus addresses with the ones you want to actually pass through. You get these from the script used to generate IOMMU groups. For example: `IOMMU Group 1 01:00.0 ...` converts to `VIRSH_...=pci_0000_01_00_0`
+    > 
+    > I will not be passing my SSD through. And I won't be using the GPU USB option either.
+4. Create the [bind_vfio.sh](scripts/pcie_dynamic_passthrough/bind.sh) script under `/etc/libvirt/hooks/win11/prepare/begin`. 
+    > [modprob](https://en.wikipedia.org/wiki/Modprobe) is used to 
+    > * add a loadable kernel module to the Linux kernel
+    > * remove a loadable kernel module from the kernel.
+    > 
+    > `virsh nodedev-detach` basically detaches the PCI driver from host and attaches it to the guest machine which in this case is **win11**.
+    > 
+    > **Remember to add addition `virsh nodedev-detach $PCI_NAME` for each PCI device you wish to passthrough**
+5. Create the [unbind_vfio.sh](scripts/pcie_dynamic_passthrough/unbind.sh) script under `/etc/libvirt/hooks/win11/release/end`.
+    > `modprob -r` is basically used to remove loadable kernel module from the kernel.
+    >
+    > `virsh nodedev-reattach` basically detaches the drivers from the guest and reattaches them to the host.
+    >
+    > As before add additional `virsh nodedev-reattach` lines for each PCI device.
+6. After creating the scripts the tree structure for the directory should look like this
+    ```
+    /etc/libvirt/hooks/
+    ├── kvm.conf
+    ├── qemu
+    └── qemu.d
+        └── win10
+            ├── prepare
+            │   └── begin
+            │       └── bind_vfio.sh
+            └── release
+                └── end
+                    └── unbind_vfio.sh
+    ```
+7. Make these two scripts executable by running `chmod +x` on them.
