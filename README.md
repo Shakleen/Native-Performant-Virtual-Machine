@@ -11,6 +11,8 @@ This repository describes the process of creating a **Windows 11** virtual machi
 * **Keybinded Peripheral Swapping** to control both host and guest through a single set of peripherals
 * **Audio passthrough** to get audio stream from guest in host machine
 
+***
+
 # Personal Hardware Configuration
 For more detailed specifications check out log of [hwinfo --short](logs/pc-configuration.txt).
 * **Motherboard**: Gigabyte Z370HD3 Rev 1.0
@@ -18,15 +20,23 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
 * **GPU**: Zotac GeForce RTX 3070
 * **SSD**: Samsung 970 EVO 512GB
 
+***
+
 # Table of Contents
 * [Introduction](#introduction)
 * [Pre-requisites](#pre-requisites)
 * [Enable IOMMU](#enable-iommu)
 * [Dynamic PCIe Binding](#dynamic-pcie-binding)
 
+***
+
 # Introduction
 
+***
+
 # Pre-requisites
+
+***
 
 # Enable IOMMU
 1. Open a terminal and execute `sudo nano /etc/default/grub`. 
@@ -49,7 +59,7 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
 
 6. Check if IOMMU has been enabled by executing `sudo dmesg | grep -i -e DMAR -e IOMMU`
     > * **[dmesg (diagnostic messages)](https://en.wikipedia.org/wiki/Dmesg)** is a command that prints the message buffer of the kernel
-    > * ***[grep](https://www.geeksforgeeks.org/grep-command-in-unixlinux/)** is used for string matching. **-i** is to ignore case and **-e** is to add a regex expression. In this command, we get the lines from **dmesg** that contains either **IOMMU** or **DMAR**.
+    > * **[grep](https://www.geeksforgeeks.org/grep-command-in-unixlinux/)** is used for string matching. **-i** is to ignore case and **-e** is to add a regex expression. In this command, we get the lines from **dmesg** that contains either **IOMMU** or **DMAR**.
 
     A line saying something like `DMAR: IOMMU enabled` should appear. [Check my log output here.](logs/dmesg-log.txt)
 
@@ -58,6 +68,8 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
     > * The output will have multiple lines all following the format shown below:  
     >      * IOMMU Group **[GROUP NO]**: **[Bus Address]** Title [0600]: Short Description **[Hardware ID]** (rev **[Revision number]**)
     > * *If your GPU and audio driver are in a IOMMU group with something other than the PCIe driver, you need to do an ACS override Patch.
+
+***
 
 # Dynamic PCIe Binding
 We are going to dynamically bind the **vfio drivers** before the VM starts and unbind these drivers after the VM terminates. To achieve this, we're going to use [libvirt hooks](https://libvirt.org/hooks.html). Libvirt has a hook system that allows you to run commands on startup or shutdown of a VM.
@@ -75,7 +87,9 @@ We are going to dynamically bind the **vfio drivers** before the VM starts and u
     > * **chmod** command sets the permissions of files or directories.  
     > * **+x** is basically used to make the file executable by anyone.
 5. Restart libvert services using `sudo systemctl restart libvirtd` to use the new script.
-    > **systemctl** is used to manager services in manjaro. **libvirtd** is a service for managing virtual machines. It needs to be restarted so that it can use the new hook helper script.
+    > * **systemctl** is used to manager services in manjaro. 
+    > * **libvirtd** is a service for managing virtual machines. 
+    > * It needs to be restarted so that it can use the new hook helper script.
 
 ## Setting up hooks
 
@@ -132,7 +146,7 @@ If we place **an executable script** in one of these directories, the **hook man
     >   * add a loadable kernel module to the Linux kernel
     >   * remove a loadable kernel module from the kernel.
     > * `virsh nodedev-detach` basically detaches the PCI driver from host and attaches it to the guest machine which in this case is **win11**.
-    > * ***Remember to add addition `virsh nodedev-detach $PCI_NAME` for each PCI device you wish to passthrough**
+    > * **Remember to add addition `virsh nodedev-detach $PCI_NAME` for each PCI device you wish to passthrough**
 5. Create the [unbind_vfio.sh](scripts/pcie_dynamic_passthrough/unbind.sh) script under `/etc/libvirt/hooks/win11/release/end`.
     > * `modprob -r` is basically used to remove loadable kernel module from the kernel.
     > * `virsh nodedev-reattach` basically detaches the drivers from the guest and reattaches them to the host.
@@ -152,3 +166,7 @@ If we place **an executable script** in one of these directories, the **hook man
                     └── unbind_vfio.sh
     ```
 7. Make these two scripts executable by running `chmod +x` on them.
+
+We're done setting up the hooks for PCI passthrough.
+
+***
