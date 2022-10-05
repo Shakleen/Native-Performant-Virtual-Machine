@@ -22,6 +22,7 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
 * [Introduction](#introduction)
 * [Pre-requisites](#pre-requisites)
 * [Enable IOMMU](#enable-iommu)
+* [Dynamic PCIe Binding](#dynamic-pcie-binding)
 
 # Introduction
 
@@ -64,4 +65,17 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
     > 
     > If your GPU and audio driver are in a IOMMU group with something other than the PCIe driver, you need to do an ACS override Patch.
 
-8. 
+# Dynamic PCIe Binding
+We are going to dynamically bind the **vfio drivers** before the VM starts and unbind these drivers after the VM terminates. To achieve this, we're going to use [libvirt hooks](https://libvirt.org/hooks.html). Libvirt has a hook system that allows you to run commands on startup or shutdown of a VM.
+
+## Hook Helper Script
+1. Create a bash script with the contents of [qemu](scripts/qemu.sh)
+2. Create a directory named `hooks` in `etc/libvirt` by executing `cd /etc/libvirt && sudo mkdir hooks`.
+    > **cd** is change directory. We go into `/etc/libvirt`.  
+    > **mkdir** is used to create a new directory.  
+    > **&&** is basically for chaining commands together.
+    >
+    > In short, we go to a directory and create a new folder there.
+3. Copy this script into `/etc/libvirt/hooks/`. Make sure the name of the file is `qemu`.
+4. Make the script executable by running `sudo chmod +x /etc/libvirt/hooks/qemu`.
+5. Restart libvert services using `sudo systemctl restart libvirtd` to use the new script.
