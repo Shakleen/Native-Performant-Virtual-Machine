@@ -1,0 +1,56 @@
+[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-5.15-x86_64 root=UUID=e62c77b5-d7b3-49b7-a05b-197b64268658 rw quiet udev.log_priority=3 intel_iommu=on iommu=pt
+[    0.007522] ACPI: DMAR 0x00000000B9117E70 0000A8 (v01 ALASKA A M I    00000001 INTL 00000001)
+[    0.007549] ACPI: Reserving DMAR table memory at [mem 0xb9117e70-0xb9117f17]
+[    0.067947] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-5.15-x86_64 root=UUID=e62c77b5-d7b3-49b7-a05b-197b64268658 rw quiet udev.log_priority=3 intel_iommu=on iommu=pt
+[    0.068000] DMAR: IOMMU enabled
+[    0.174436] DMAR: Host address width 39
+[    0.174437] DMAR: DRHD base: 0x000000fed90000 flags: 0x0
+[    0.174441] DMAR: dmar0: reg_base_addr fed90000 ver 1:0 cap 1c0000c40660462 ecap 19e2ff0505e
+[    0.174443] DMAR: DRHD base: 0x000000fed91000 flags: 0x1
+[    0.174445] DMAR: dmar1: reg_base_addr fed91000 ver 1:0 cap d2008c40660462 ecap f050da
+[    0.174446] DMAR: RMRR base: 0x000000b991c000 end: 0x000000b9b65fff
+[    0.174455] DMAR: RMRR base: 0x000000bb000000 end: 0x000000bf7fffff
+[    0.174457] DMAR-IR: IOAPIC id 2 under DRHD base  0xfed91000 IOMMU 1
+[    0.174458] DMAR-IR: HPET id 0 under DRHD base 0xfed91000
+[    0.174459] DMAR-IR: Queued invalidation will be enabled to support x2apic and Intr-remapping.
+[    0.176019] DMAR-IR: Enabled IRQ remapping in x2apic mode
+[    1.444340] iommu: Default domain type: Passthrough (set via kernel command line)
+[    1.539369] DMAR: No ATSR found
+[    1.539369] DMAR: No SATC found
+[    1.539370] DMAR: IOMMU feature fl1gp_support inconsistent
+[    1.539371] DMAR: IOMMU feature pgsel_inv inconsistent
+[    1.539372] DMAR: IOMMU feature nwfs inconsistent
+[    1.539373] DMAR: IOMMU feature pasid inconsistent
+[    1.539374] DMAR: IOMMU feature eafs inconsistent
+[    1.539374] DMAR: IOMMU feature prs inconsistent
+[    1.539375] DMAR: IOMMU feature nest inconsistent
+[    1.539375] DMAR: IOMMU feature mts inconsistent
+[    1.539376] DMAR: IOMMU feature sc_support inconsistent
+[    1.539376] DMAR: IOMMU feature dev_iotlb_support inconsistent
+[    1.539378] DMAR: dmar0: Using Queued invalidation
+[    1.539380] DMAR: dmar1: Using Queued invalidation
+[    1.539683] pci 0000:00:00.0: Adding to iommu group 0
+[    1.539694] pci 0000:00:01.0: Adding to iommu group 1
+[    1.539721] pci 0000:00:02.0: Adding to iommu group 2
+[    1.539728] pci 0000:00:08.0: Adding to iommu group 3
+[    1.539736] pci 0000:00:14.0: Adding to iommu group 4
+[    1.539744] pci 0000:00:16.0: Adding to iommu group 5
+[    1.539760] pci 0000:00:17.0: Adding to iommu group 6
+[    1.539772] pci 0000:00:1b.0: Adding to iommu group 7
+[    1.539780] pci 0000:00:1b.2: Adding to iommu group 8
+[    1.539788] pci 0000:00:1b.3: Adding to iommu group 9
+[    1.539849] pci 0000:00:1b.4: Adding to iommu group 10
+[    1.539861] pci 0000:00:1c.0: Adding to iommu group 11
+[    1.539878] pci 0000:00:1c.2: Adding to iommu group 12
+[    1.539885] pci 0000:00:1c.4: Adding to iommu group 13
+[    1.539900] pci 0000:00:1d.0: Adding to iommu group 14
+[    1.539914] pci 0000:00:1f.0: Adding to iommu group 15
+[    1.539921] pci 0000:00:1f.2: Adding to iommu group 15
+[    1.539927] pci 0000:00:1f.3: Adding to iommu group 15
+[    1.539933] pci 0000:00:1f.4: Adding to iommu group 15
+[    1.539940] pci 0000:00:1f.6: Adding to iommu group 16
+[    1.539958] pci 0000:01:00.0: Adding to iommu group 1
+[    1.539961] pci 0000:01:00.1: Adding to iommu group 1
+[    1.539968] pci 0000:09:00.0: Adding to iommu group 17
+[    1.540082] DMAR: Intel(R) Virtualization Technology for Directed I/O
+[    3.648503] AMD-Vi: AMD IOMMUv2 functionality not available on this system - This is not a bug.

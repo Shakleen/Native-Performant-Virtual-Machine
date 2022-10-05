@@ -11,8 +11,57 @@ This repository describes the process of creating a **Windows 11** virtual machi
 * **Keybinded Peripheral Swapping** to control both host and guest through a single set of peripherals
 * **Audio passthrough** to get audio stream from guest in host machine
 
-# Personal Configuration
+# Personal Hardware Configuration
+For more detailed specifications check out log of [hwinfo --short](logs/pc-configuration.txt).
+* **Motherboard**: Gigabyte Z370HD3 Rev 1.0
+* **CPU**: Intel Core i5 8400
+* **GPU**: Zotac GeForce RTX 3070
+* **SSD**: Samsung 970 EVO 512GB
 
-```logs/pc-configuration.txt
+# Table of Contents
+* [Introduction](#introduction)
+* [Pre-requisites](#pre-requisites)
+* [Enable IOMMU](#enable-iommu)
 
-```
+# Introduction
+
+# Pre-requisites
+
+# Enable IOMMU
+1. Open a terminal and execute `sudo nano /etc/default/grub`. 
+
+    > This will open up default GRUB configuration. 
+    > 
+    > [GRUB](https://itsfoss.com/what-is-grub/) is a boot loader used by Manjaro Linux to load the operating system. We will edit this file to turn on IOMMU everytime the OS boots because it will be a pain to manually turn IOMMU on everytime.
+
+2. Append `intel_iommu=on iommu=pt` to the end of **GRUB_CMDLINE_LINUX_DEFAULT** options. Afterwards it should look like this:
+
+    ```bash
+    # .. lines ...
+    GRUB_CMDLINE_LINUX_DEFAULT="quiet udev.log_priority=3 intel_iommu=on iommu=pt"
+    # .. lines ...
+    ```
+
+3. Save and exit file.
+
+4. Update grub by typing `sudo update-grub`. 
+    
+    > This basically updates GRUB bootloader with the new configuration options.
+
+5. Reboot.
+
+6. Check if IOMMU has been enabled by executing `sudo dmesg | grep -i -e DMAR -e IOMMU`
+
+    > **[dmesg (diagnostic messages)](https://en.wikipedia.org/wiki/Dmesg)** is a command that prints the message buffer of the kernel
+    > 
+    > **[grep](https://www.geeksforgeeks.org/grep-command-in-unixlinux/)** is used for string matching. **-i** is to ignore case and **-e** is to add a regex expression. In this command, we get the lines from **dmesg** that contains either **IOMMU** or **DMAR**.
+
+    A line saying something like `DMAR: IOMMU enabled` should appear. [Check my log output here.](logs/dmesg-log.txt)
+
+7. If IOMMU is turned on then check for IOMMU groups. Create a script with the contents of [group-ionmmu-hw.sh](scripts/group-iommu-hw.sh). Then execute it.
+
+    > This script gives you the IOMMU group each hardware in your system belongs to. We pass everything under the same IOMMU group to the guest machine.
+    > 
+    > If your GPU and audio driver are in a IOMMU group with something other than the PCIe driver, you need to do an ACS override Patch.
+
+8. 
