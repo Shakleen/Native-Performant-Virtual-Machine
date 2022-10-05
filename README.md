@@ -10,3 +10,9 @@ This repository describes the process of creating a **Windows 11** virtual machi
 * **Virtio Disk** to optimize I/O operations
 * **Keybinded Peripheral Swapping** to control both host and guest through a single set of peripherals
 * **Audio passthrough** to get audio stream from guest in host machine
+
+# Personal Configuration
+
+```logs/pc-configuration.txt
+
+```

@@ -1,0 +1,84 @@
+$ hwinfo --short
+cpu:                                                            
+                       Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz, 2800 MHz
+                       Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz, 2800 MHz
+                       Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz, 2800 MHz
+                       Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz, 3463 MHz
+                       Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz, 2800 MHz
+                       Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz, 2800 MHz
+keyboard:
+  /dev/input/event13   Apple Aluminium Keyboard (ANSI)
+mouse:
+  /dev/input/mice      XP-Pen 10 inch PenTablet
+  /dev/input/event14   Apple Aluminium Keyboard (ANSI)
+  /dev/input/mice      Razer Mamba Elite (Wired)
+monitor:
+                       MSI MP241
+graphics card:
+                       nVidia GA104 [GeForce RTX 3070]
+                       Intel CometLake-S GT2 [UHD Graphics 630]
+sound:
+                       Intel 200 Series PCH HD Audio
+                       nVidia GA104 High Definition Audio Controller
+                       Corsair Corsair HS60 Surround Adapter
+storage:
+                       Intel 200 Series PCH SATA controller [AHCI mode]
+                       Samsung Electronics Non-Volatile memory controller
+network:
+  eno1                 Intel Ethernet Connection (2) I219-V
+  wlp0s20f0u6          Ralink MT7601U Wireless Adapter
+network interface:
+  lo                   Loopback network interface
+  eno1                 Ethernet network interface
+  virbr0               Ethernet network interface
+  wlp0s20f0u6          Ethernet network interface
+disk:
+  /dev/nvme0n1         Samsung Electronics Samsung SSD 980 500GB
+  /dev/sda             TOSHIBA DT01ACA1
+partition:
+  /dev/nvme0n1p1       Partition
+  /dev/nvme0n1p2       Partition
+  /dev/nvme0n1p3       Partition
+  /dev/sda1            Partition
+  /dev/sda2            Partition
+  /dev/sda3            Partition
+  /dev/sda4            Partition
+  /dev/sda5            Partition
+usb controller:
+                       Intel 200 Series/Z370 Chipset Family USB 3.0 xHCI Controller
+bios:
+                       BIOS
+bridge:
+                       Intel 200 Series PCH PCI Express Root Port #1
+                       Intel Z370 Chipset LPC/eSPI Controller
+                       Intel 200 Series PCH PCI Express Root Port #21
+                       Intel 6th-10th Gen Core Processor PCIe Controller (x16)
+                       Intel 200 Series PCH PCI Express Root Port #19
+                       Intel 200 Series PCH PCI Express Root Port #17
+                       Intel 8th Gen Core Processor Host Bridge/DRAM Registers
+                       Intel 200 Series PCH PCI Express Root Port #20
+                       Intel 200 Series PCH PCI Express Root Port #9
+                       Intel 200 Series PCH PCI Express Root Port #5
+                       Intel 200 Series PCH PCI Express Root Port #3
+hub:
+                       Huasheng Electronics USB2.0 HUB
+                       Linux Foundation 2.0 root hub
+                       Linux Foundation 3.0 root hub
+memory:
+                       Main Memory
+unknown:
+                       FPU
+                       DMA controller
+                       PIC
+                       Keyboard controller
+  /dev/lp0             Parallel controller
+                       PS/2 Controller
+                       Intel 200 Series/Z370 Chipset Family Power Management Controller
+                       Intel Xeon E3-1200 v5/v6 / E3-1500 v5 / 6th/7th/8th Gen Core Processor Gaussian Mixture Model
+                       Intel 200 Series PCH CSME HECI #1
+                       Intel 200 Series/Z370 Chipset Family SMBus Controller
+  /dev/ttyS0           16550A
+  /dev/input/event6    Corsair Corsair HS60 Surround Adapter
+  /dev/input/event9    Razer Mamba Elite (Wired)
+                       Canon CanoScan LiDE 300
+                       XP-Pen 10 inch PenTablet
