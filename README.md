@@ -27,6 +27,8 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
 * [Pre-requisites](#pre-requisites)
 * [Enable IOMMU](#enable-iommu)
 * [Dynamic PCIe Binding](#dynamic-pcie-binding)
+* [Creating Windows 11 Virtual Machine](#creating-windows-11-virtual-machine)
+* [References](#references)
 
 ***
 
@@ -170,3 +172,74 @@ If we place **an executable script** in one of these directories, the **hook man
 We're done setting up the hooks for PCI passthrough.
 
 ***
+
+# Creating Windows 11 Virtual Machine
+
+1. Download a windows 11 iso from the official microsoft site.
+2. Download the stable release of virtio iso from [here](https://docs.fedoraproject.org/en-US/quick-docs/creating-windows-virtual-machines-using-virtio-drivers/).
+3. Install TPM emulator `sudo pacman -Syyu swtpm`.
+4. Create a virtual machine following `Virtual Machine Manager`
+    > * How to install OS: Local Install Media
+    > * Choose ISO: Windows 11 iso downloaded in step 1.
+    > * Memory: I set 16384MB.
+    > * CPU: I set 4
+    > * Storage: I created a custom 64GB qcow2 storage.
+    > * Virtual machine name: Must be **win11**
+    > * Tick configure before installation.
+5. In **Overview**, set firmware to secure boot.<br><img src="images/screen-captures/vm-setup-bios.png" alt="BIOS Options" style="width:512px;"/>
+6. Go to **CPU** and set options.<br><img src="images/screen-captures/vm-setup-cpu.png" alt="CPU Options" style="width:512px;"/>
+    > * Socket: How many CPUs are attached. In my case only 1.
+    > * Cores: I set 4. Meaning, I'll have one CPU with 4 cores.
+    > * Threads: I set 1. Meaning, Each core will have one thread.
+7. Go to **SATA disk 1** and set options.<br><img src="images/screen-captures/vm-setup-sata.png" alt="SATA Options" style="width:512px;"/>
+    > * Virtio disks are much more optimized for VMs compared to SATA.
+    > * The cache mode `write-back` is a minor optmization to speed up disk speeds.
+8. Go to **NIC** and set options.<br><img src="images/screen-captures/vm-setup-nic.png" alt="SATA Options" style="width:512px;"/>
+9. Remove everything else except for the followings in the scrren shot.<br><img src="images/screen-captures/vm-setup-remove.png" alt="SATA Options" style="width:512px;"/>
+10. Add new hardware.<br><img src="images/screen-captures/vm-setup-virt-iso.png" alt="SATA Options" style="width:512px;"/>
+    > We're loading the virtio iso downloaded in step 2.
+11. Go to **boot options** and configure CD ROM1 to boot first and then the virtio disk.<br><img src="images/screen-captures/vm-setup-boot-options.png" alt="SATA Options" style="width:512px;"/>
+12. Add PCI hardware using `Add Hardware`. Each individual hardware must be added seperately.<br><img src="images/screen-captures/vm-setup-pci-add.png" alt="SATA Options" style="width:512px;"/>
+    > **Make sure to repeat this step for all the devices associated with your GPU in the same IOMMU group**
+13. Add USB devices to passthrough using `Add New Hardware`.<br><img src="images/screen-captures/vm-setup-usb-add.png" alt="SATA Options" style="width:512px;"/>
+    > **The USB devices passed through will NOT be available on the host at this point.** Have additional mouse and keyboards attached so that you can use the host machine.
+14. Add TPM through `Add New Hardware`.<br><img src="images/screen-captures/vm-setup-tpm.png" alt="SATA Options" style="width:512px;"/>
+    > **TPM or Trusted Platform Module** is a hardware chip required to use Windows 11. We're basically emulating this.
+15. (Optional) If you're using an nVidia GPU then you might face [Issue 43](https://passthroughpo.st/apply-error-43-workaround/). 
+    * If you want to use all its features on the VM, you need to hide that the guest machine is a VM. To do this add the following XML portion under `<hyperv>`.
+        ```xml
+        <features>
+            ...
+            <hyperv>
+                ...
+                <spinlocks state="on" retries="8191"/>
+                <vendor_id state="on" value="kvm hyperv"/>  <!-- Add this line -->
+            </hyperv>
+            ...
+        </features>
+        ```
+    * In addition, instruct the kvm to hide its state by adding the following code directly below the `<hyperv>` section:
+        ```xml
+        <features>
+            ...
+            <hyperv>
+                ...
+            </hyperv>
+            <kvm>
+                <hidden state="on"/>
+            </kvm>
+            ...
+        </features>
+        ```
+    * Finally, add the following line to `<feature>`
+        ```xml
+        <feature>
+            ...
+            <ioapic driver="kvm"/>
+        </features>
+        ```
+16. Begin Installation.
+
+# References
+* [PCI Passthrough via OVMF](https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF)
+* [GPU Passthrough Tutorial](https://github.com/bryansteiner/gpu-passthrough-tutorial#part2)
