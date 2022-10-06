@@ -25,6 +25,7 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
 # Table of Contents
 * [Introduction](#introduction)
 * [Pre-requisites](#pre-requisites)
+* [Install KVM and QEMU](#install-kvm-and-qemu)
 * [Enable IOMMU](#enable-iommu)
 * [Dynamic PCIe Binding](#dynamic-pcie-binding)
 * [Creating Windows 11 Virtual Machine](#creating-windows-11-virtual-machine)
@@ -41,10 +42,53 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
 
 ***
 
+# Install KVM and QEMU
+1. Open up a terminal and enter super user mode by typing `sudo -i`.
+    > * This basically means that all the commands you'll be executing next will be as the super user.
+    > * Many of the commands we'll enter next need to be executed as super user. Which could mean entering the password multiple times.
+    > * This just makes things easier.
+2. Install KVM packages
+    ```bash
+    $ pacman -Syyu archlinux-keyring \
+    qemu virt-manager virt-viewer dnsmasq vde2 \
+    bridge-utils openbsd-netcat ebtables iptables
+    ```
+3. Install libguestfs (A set of tools used to manage VMs): `pacman -S libguestfs`
+4. Enable and start `libvirtd` services.
+    ```bash
+    $ systemctl enable libvirtd.service
+    $ systemctl start libvirtd.service
+    $ systemctl enable virtlogd.socket
+    ```
+    > * **systemctl** is used to manager services in manjaro. 
+    > * **libvirtd** is a service for managing virtual machines. 
+5. Edit `/etc/libvirt/libvirtd.conf`: `nano /etc/libvirt/libvirtd.conf`
+    * **Uncomment line 85**: `unix_sock_group = "libvirt"`
+    * **Uncomment line 108**: `unix_sock_rw_perms = "0770"`
+6. Edit `/etc/libvirt/qemu.conf`: `nano /etc/libvirt/qemu.conf`
+    * **Line 519**: Set `user` to your linux user name (run `echo $USER` to know what it is exactly).
+    * **Line 523**: Set `group` to `libvirt`.
+    > This is to avoid the disk reading issues that happens sometimes in virtual machine manager.
+7. Add your user account to libvirt group by running
+    ```bash
+    $ usermod -a -G libvirt $(whoami)
+    $ newgrp libvirt
+    ``` 
+8. Restart libvirt services
+    ```bash
+    $ systemctl restart libvirtd.service
+    $ sudo systemctl restart libvirtd
+    ```
+9. Set network to autostart by default.
+    ```bash
+    $ virsh net-autostart default
+    $ virsh net-start default
+    ```
+
 # Enable IOMMU
 1. Open a terminal and execute `sudo nano /etc/default/grub`. 
     > * This will open up default GRUB configuration. 
-    > * *[GRUB](https://itsfoss.com/what-is-grub/) is a boot loader used by Manjaro Linux to load the operating system. We will edit this file to turn on IOMMU everytime the OS boots because it will be a pain to manually turn IOMMU on everytime.
+    > * [GRUB](https://itsfoss.com/what-is-grub/) is a boot loader used by Manjaro Linux to load the operating system. We will edit this file to turn on IOMMU everytime the OS boots because it will be a pain to manually turn IOMMU on everytime.
 
 2. Append `intel_iommu=on iommu=pt` to the end of **GRUB_CMDLINE_LINUX_DEFAULT** options. Afterwards it should look like this:
     ```bash
@@ -77,7 +121,7 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
 # Dynamic PCIe Binding
 We are going to dynamically bind the **vfio drivers** before the VM starts and unbind these drivers after the VM terminates. To achieve this, we're going to use [libvirt hooks](https://libvirt.org/hooks.html). Libvirt has a hook system that allows you to run commands on startup or shutdown of a VM.
 
-## Hook Helper Script
+## Hooks Helper Script
 1. Create a bash script with the contents of [qemu](scripts/qemu.sh)
 2. Create a directory named `hooks` in `etc/libvirt` by executing `cd /etc/libvirt && sudo mkdir hooks`.
     > * **cd** is change directory. We go into `/etc/libvirt`.  
@@ -90,30 +134,38 @@ We are going to dynamically bind the **vfio drivers** before the VM starts and u
     > * **chmod** command sets the permissions of files or directories.  
     > * **+x** is basically used to make the file executable by anyone.
 5. Restart libvert services using `sudo systemctl restart libvirtd` to use the new script.
-    > * **systemctl** is used to manager services in manjaro. 
-    > * **libvirtd** is a service for managing virtual machines. 
     > * It needs to be restarted so that it can use the new hook helper script.
 
-## Setting up hooks
-
+## Hooks Directory Structure
 Let's first get know the important hooks
-```
+```bash
+# In directory:
+# /etc/libvirt/hooks/qemu.d/
+
 # Before a VM is started, before resources are allocated:
-/etc/libvirt/hooks/qemu.d/$vmname/prepare/begin/*
+$vmname/prepare/begin/*
 
 # Before a VM is started, after resources are allocated:
-/etc/libvirt/hooks/qemu.d/$vmname/start/begin/*
+$vmname/start/begin/*
 
 # After a VM has started up:
-/etc/libvirt/hooks/qemu.d/$vmname/started/begin/*
+$vmname/started/begin/*
 
 # After a VM has shut down, before releasing its resources:
-/etc/libvirt/hooks/qemu.d/$vmname/stopped/end/*
+$vmname/stopped/end/*
 
 # After a VM has shut down, after resources are released:
-/etc/libvirt/hooks/qemu.d/$vmname/release/end/*
+$vmname/release/end/*
 ```
-If we place **an executable script** in one of these directories, the **hook manager** will take care of everything else. So the directory structure will look like the following for `win11` virtual machine:
+If we place **an executable script** in one of these directories, the **hook manager** will take care of everything else. Execute the following lines to setup the directory
+```bash
+$ cd /etc/libvirt/hooks 
+$ sudo mkdir qemu.d && $ cd qemu.d
+$ sudo mkdir win11 && cd win11
+$ sudo mkdir prepare prepare/begin release release/end
+```
+
+Run `tree` on directory `/etc/libvirt/hooks` by typing `tree /etc/libvirt/hooks`. It should look like this
 ```
 /etc/libvirt/hooks/
 ├── qemu
@@ -124,16 +176,12 @@ If we place **an executable script** in one of these directories, the **hook man
         └── release
             └── end
 ```
-1. Create this folder structure by executing this 
-    ```bash
-    $ cd /etc/libvirt/hooks 
-    $ sudo mkdir qemu.d && $ cd qemu.d
-    $ sudo mkdir win11 && cd win11
-    $ sudo mkdir prepare prepare/begin release release/end
-    ```
+> * [Tree](https://www.tutorialspoint.com/unix_commands/tree.htm) is a recursive directory listing program
+> * You might need to install tree using `sudo pacman -S tree`
 
-2. Create a file called `kvm.conf` in `/etc/libvirt/hooks` by executing `sudo touch /etc/libvirt/hooks/kvm.conf`.
-3. We will now place the PCIe device ids inside this file in the following format
+## Setting up hooks
+1. Create a file called `kvm.conf` in `/etc/libvirt/hooks` by executing `sudo touch /etc/libvirt/hooks/kvm.conf`.
+2. We will now place the PCIe device ids inside this file in the following format
     ```
     ## Virsh devices
     VIRSH_GPU_VIDEO=pci_0000_01_00_0
@@ -142,19 +190,21 @@ If we place **an executable script** in one of these directories, the **hook man
     VIRSH_GPU_SERIAL=pci_0000_0a_00_3
     VIRSH_NVME_SSD=pci_0000_04_00_0
     ```
-    > * Make sure to replace the bus addresses with the ones you want to actually pass through. You get these from the script used to generate IOMMU groups. For example: `IOMMU Group 1 01:00.0 ...` converts to `VIRSH_...=pci_0000_01_00_0`
+    > * Make sure to replace the bus addresses with the ones you want to actually pass through. You get these from the script used to generate IOMMU groups. 
+    > * For example: `IOMMU Group 1 01:00.0 ...` converts to `VIRSH_...=pci_0000_01_00_0`
     > * I will not be passing my SSD through. And I won't be using the GPU USB option either.
-4. Create the [bind_vfio.sh](scripts/pcie_dynamic_passthrough/bind.sh) script under `/etc/libvirt/hooks/win11/prepare/begin`. 
+3. Create the [bind_vfio.sh](scripts/pcie_dynamic_passthrough/bind.sh) script under `/etc/libvirt/hooks/qemu.d/win11/prepare/begin`. 
     > * [modprob](https://en.wikipedia.org/wiki/Modprobe) is used to 
     >   * add a loadable kernel module to the Linux kernel
     >   * remove a loadable kernel module from the kernel.
     > * `virsh nodedev-detach` basically detaches the PCI driver from host and attaches it to the guest machine which in this case is **win11**.
     > * **Remember to add addition `virsh nodedev-detach $PCI_NAME` for each PCI device you wish to passthrough**
-5. Create the [unbind_vfio.sh](scripts/pcie_dynamic_passthrough/unbind.sh) script under `/etc/libvirt/hooks/win11/release/end`.
+4. Create the [unbind_vfio.sh](scripts/pcie_dynamic_passthrough/unbind.sh) script under `/etc/libvirt/hooks/qemu.d/win11/release/end`.
     > * `modprob -r` is basically used to remove loadable kernel module from the kernel.
     > * `virsh nodedev-reattach` basically detaches the drivers from the guest and reattaches them to the host.
     > * As before add additional `virsh nodedev-reattach` lines for each PCI device.
-6. After creating the scripts the tree structure for the directory should look like this
+5. Make these two scripts executable by running `chmod +x` on them.
+6. After creating the scripts the tree structure for `/etc/libvirt/hooks/` should look like this
     ```
     /etc/libvirt/hooks/
     ├── kvm.conf
@@ -168,7 +218,6 @@ If we place **an executable script** in one of these directories, the **hook man
                 └── end
                     └── unbind_vfio.sh
     ```
-7. Make these two scripts executable by running `chmod +x` on them.
 
 We're done setting up the hooks for PCI passthrough.
 
@@ -176,10 +225,16 @@ We're done setting up the hooks for PCI passthrough.
 
 # Creating Windows 11 Virtual Machine
 
+## Downloading Necessary Files
 1. Download a windows 11 iso from the official microsoft site.
 2. Download the stable release of virtio iso from [here](https://docs.fedoraproject.org/en-US/quick-docs/creating-windows-virtual-machines-using-virtio-drivers/).
+    > We'll be using virtio drivers for storage and network. virtio is optimized for virtual machines.
 3. Install TPM emulator `sudo pacman -Syyu swtpm`.
-4. Create a virtual machine following `Virtual Machine Manager`
+    > **TPM or Trusted Platform Module** is a hardware chip required to use Windows 11. We're basically emulating a hardware chip using this software package. 
+
+## Creating the Virtual Machine
+Before starting to create a new Virtual Machine enable `XML editting` in `Preferences` under `Edit`. We'll need to edit the XML for many optimizations.
+1. Create a virtual machine following `Virtual Machine Manager`
     > * How to install OS: Local Install Media
     > * Choose ISO: Windows 11 iso downloaded in step 1.
     > * Memory: I set 16384MB.
@@ -187,60 +242,64 @@ We're done setting up the hooks for PCI passthrough.
     > * Storage: I created a custom 64GB qcow2 storage.
     > * Virtual machine name: Must be **win11**
     > * Tick configure before installation.
-5. In **Overview**, set firmware to secure boot.<br><img src="images/screen-captures/vm-setup-bios.png" alt="BIOS Options" style="width:512px;"/>
-6. Go to **CPU** and set options.<br><img src="images/screen-captures/vm-setup-cpu.png" alt="CPU Options" style="width:512px;"/>
-    > * Socket: How many CPUs are attached. In my case only 1.
+2. In **Overview**, set firmware to secure boot.<br><img src="images/screen-captures/vm-setup-bios.png" alt="BIOS Options" style="width:512px;"/>
+    > Windows 11 requires secure boot to work.
+3. Go to **CPU** and set options.<br><img src="images/screen-captures/vm-setup-cpu.png" alt="CPU Options" style="width:512px;"/>
+    > * Socket: Number of CPUs attached. In my case only 1.
     > * Cores: I set 4. Meaning, I'll have one CPU with 4 cores.
     > * Threads: I set 1. Meaning, Each core will have one thread.
-7. Go to **SATA disk 1** and set options.<br><img src="images/screen-captures/vm-setup-sata.png" alt="SATA Options" style="width:512px;"/>
+4. Go to **SATA disk 1** and set options.<br><img src="images/screen-captures/vm-setup-sata.png" alt="SATA Options" style="width:512px;"/>
     > * Virtio disks are much more optimized for VMs compared to SATA.
     > * The cache mode `write-back` is a minor optmization to speed up disk speeds.
-8. Go to **NIC** and set options.<br><img src="images/screen-captures/vm-setup-nic.png" alt="SATA Options" style="width:512px;"/>
-9. Remove everything else except for the followings in the scrren shot.<br><img src="images/screen-captures/vm-setup-remove.png" alt="SATA Options" style="width:512px;"/>
-10. Add new hardware.<br><img src="images/screen-captures/vm-setup-virt-iso.png" alt="SATA Options" style="width:512px;"/>
+5. Go to **NIC** and set options.<br><img src="images/screen-captures/vm-setup-nic.png" alt="SATA Options" style="width:512px;"/>
+6. Remove everything else except for the followings in the scrren shot.<br><img src="images/screen-captures/vm-setup-remove.png" alt="SATA Options" style="width:512px;"/>
+7. Add new hardware.<br><img src="images/screen-captures/vm-setup-virt-iso.png" alt="SATA Options" style="width:512px;"/>
     > We're loading the virtio iso downloaded in step 2.
-11. Go to **boot options** and configure CD ROM1 to boot first and then the virtio disk.<br><img src="images/screen-captures/vm-setup-boot-options.png" alt="SATA Options" style="width:512px;"/>
-12. Add PCI hardware using `Add Hardware`. Each individual hardware must be added seperately.<br><img src="images/screen-captures/vm-setup-pci-add.png" alt="SATA Options" style="width:512px;"/>
+8. Go to **boot options** and configure CD ROM1 to boot first and then the virtio disk.<br><img src="images/screen-captures/vm-setup-boot-options.png" alt="SATA Options" style="width:512px;"/>
+9. Add PCI hardware using `Add Hardware`. Each individual hardware must be added seperately.<br><img src="images/screen-captures/vm-setup-pci-add.png" alt="SATA Options" style="width:512px;"/>
     > **Make sure to repeat this step for all the devices associated with your GPU in the same IOMMU group**
-13. Add USB devices to passthrough using `Add New Hardware`.<br><img src="images/screen-captures/vm-setup-usb-add.png" alt="SATA Options" style="width:512px;"/>
+10. Add USB devices to passthrough using `Add New Hardware`.<br><img src="images/screen-captures/vm-setup-usb-add.png" alt="SATA Options" style="width:512px;"/>
     > **The USB devices passed through will NOT be available on the host at this point.** Have additional mouse and keyboards attached so that you can use the host machine.
-14. Add TPM through `Add New Hardware`.<br><img src="images/screen-captures/vm-setup-tpm.png" alt="SATA Options" style="width:512px;"/>
-    > **TPM or Trusted Platform Module** is a hardware chip required to use Windows 11. We're basically emulating this.
-15. **(Optional)** If you're using an nVidia GPU then you might face [Issue 43](https://passthroughpo.st/apply-error-43-workaround/). 
-    * If you want to use all its features on the VM, you need to hide that the guest machine is a VM. To do this add the following XML portion under `<hyperv>`.
-        ```xml
-        <features>
+11. Add TPM through `Add New Hardware`.<br><img src="images/screen-captures/vm-setup-tpm.png" alt="SATA Options" style="width:512px;"/>
+
+## (Optional) Workaround for nVidia GPUs
+If you're using an nVidia GPU then you might face [Issue 43](https://passthroughpo.st/apply-error-43-workaround/). If you want to use all its features on the VM, you need to hide that the guest machine is a VM. To solve this we need to edit the VM XML.
+
+1. Add vendor id for KVM hypervisor.
+```xml
+<features>
+    ...
+    <hyperv>
+        ...
+        <spinlocks state="on" retries="8191"/>
+        <vendor_id state="on" value="kvm hyperv"/>  <!-- Add this line -->
+    </hyperv>
+    ...
+</features>
+```
+2. In addition, instruct kvm to hide its state by adding the following code directly below the `<hyperv>` section:
+    ```xml
+    <features>
+        ...
+        <hyperv>
             ...
-            <hyperv>
-                ...
-                <spinlocks state="on" retries="8191"/>
-                <vendor_id state="on" value="kvm hyperv"/>  <!-- Add this line -->
-            </hyperv>
-            ...
-        </features>
-        ```
-    * In addition, instruct the kvm to hide its state by adding the following code directly below the `<hyperv>` section:
-        ```xml
-        <features>
-            ...
-            <hyperv>
-                ...
-            </hyperv>
-            <!-- Add this portion -->
-            <kvm> 
-                <hidden state="on"/>
-            </kvm>
-            ...
-        </features>
-        ```
-    * Finally, append the following line to `<feature>`
-        ```xml
-        <feature>
-            ...
-            <ioapic driver="kvm"/> <!-- Add this line -->
-        </features>
-        ```
-16. Begin Installation.
+        </hyperv>
+        <!-- Add this portion -->
+        <kvm> 
+            <hidden state="on"/>
+        </kvm>
+        ...
+    </features>
+    ```
+3. Finally, append the following line to `<feature>`
+    ```xml
+    <feature>
+        ...
+        <ioapic driver="kvm"/> <!-- Add this line -->
+    </features>
+    ```
+
+We're done setting up the virtual machine and can now begin installation.
 
 ***
 
