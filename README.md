@@ -60,7 +60,7 @@ For more detailed specifications check out log of [hwinfo --short](logs/pc-confi
     $ systemctl start libvirtd.service
     $ systemctl enable virtlogd.socket
     ```
-    > * **systemctl** is used to manager services in manjaro. 
+    > * **systemctl** is used to manage services in manjaro. 
     > * **libvirtd** is a service for managing virtual machines. 
 5. Edit `/etc/libvirt/libvirtd.conf`: `nano /etc/libvirt/libvirtd.conf`
     * **Uncomment line 85**: `unix_sock_group = "libvirt"`
@@ -309,8 +309,11 @@ We're done setting up the virtual machine and can now begin installation.
 This step limits the guest machine to a select few cores of a CPU. This way the guest won't touch the other cores leaving them free for the host machine. 
 
 1. Run `lscpu -e`. This will show you the topology of your CPU. Check my logs [here](logs/lscpu.txt).
-2. You want to pin cores that share the same L3 cache value. I will pin cores 0 to 3.
-3. Add CPU pinning info to the VM XML.
+    > * If you have a multithreaded CPU then pin the physical and virtual core. For example if you have a 6 core 12 thread CPU, you should pin both cores 0 and 12. Here core 0 is the physical core and core 12 is the virtual core.
+    > * You should pin cores that share the same L3 cache value. This minimizes the fight between cores for L3 cache.
+    > * `iothreadpin` and `emulatorpin` pin should be placed on the cores that aren't being pinned. Meaning, these should be on cores that will be used by the `host machine`.
+    > * I will pin cores 0 to 3. And set core 4 for `iothreadpin` and `emulatorpin`.
+2. Add CPU pinning info to the VM XML.
     ```xml
     <vcpu placement='static'>4</vcpu>
     <!-- Insert the portion below -->
@@ -319,9 +322,12 @@ This step limits the guest machine to a select few cores of a CPU. This way the 
         <vcpupin vcpu='1' cpuset='1'/>
         <vcpupin vcpu='2' cpuset='2'/>
         <vcpupin vcpu='3' cpuset='3'/>
+        <emulatorpin cpuset='4'/>
+        <iothreadpin iothread='1' cpuset='4'/>
     </cputune>
     ```
-4. Edit `<cpu>` to include the lines mentioned below:
+    > If you do have an `iothreadpin` then you MUST have a `iothread` from [disk tuning section](#disk-tuning).
+3. Edit `<cpu>` to include the lines mentioned below:
 
     ```xml
     <cpu mode="host-passthrough" check="none" migratable="on">
@@ -340,7 +346,7 @@ This step ensures that when the guest machine is running the host machine won't 
 3. Make sure all scripts are executable by running `chmod +x` on them.
 
 ## CPU Governor
-This performance tweak14 takes advantage of the CPU frequency scaling governor in Linux.
+This performance tweak takes advantage of the CPU frequency scaling governor in Linux.
 
 1. Create [cpu_performance_mode.sh](scripts/cpu_governor_mode/cpu_performance_mode.sh) and place under `/etc/libvirt/hooks/qemu.d/win11/prepare/begin`.
 2. Create [cpu_ondemand_mode.sh](scripts/cpu_governor_mode/cpu_ondemand_mode.sh) and place under `/etc/libvirt/hooks/qemu.d/win11/release/end`.
@@ -366,6 +372,44 @@ After adding all required files the directory should look like this
 
 6 directories, 8 files
 ```
+
+## Disk Tuning
+1. Add an `iothread` to the VM xml.
+    ```xml
+    <vcpu placement='static'>4</vcpu>
+    <iothreads>1</iothreads> <!-- Insert this line -->
+    <cputune>
+        <vcpupin vcpu='0' cpuset='0'/>
+        <vcpupin vcpu='1' cpuset='1'/>
+        <vcpupin vcpu='2' cpuset='2'/>
+        <vcpupin vcpu='3' cpuset='3'/>
+        <emulatorpin cpuset='4'/>
+        <iothreadpin iothread='1' cpuset='4'/>
+    </cputune>
+    ```
+    > An **IO thread** is a dedicated thread for processing disk events, rather than using the main qemu emulator loop.
+2. There are two choices for a disk controller: `virtio-scsi` and `virtio-blk`. `virtio-scsi` is newer and better. Add a new hardware to the VM.
+    <br><img src="images/screen-captures/vm-setup-bios.png" alt="BIOS Options" style="width:512px;"/>
+3. Now we need to edit the XML of the controller:
+    ```xml
+    <devices>
+        ...
+        <controller type='scsi' index='0' model='virtio-scsi'>
+            <!-- Add this line -->
+            <driver iothread='1' queues='8'/>
+            ...
+        </controller>
+        ...
+    </devices>
+    ```
+4. Edit Virtio disk drive to add the following attributes `io`, `discard`, and `queues`. The queue value is the same as the `driver` in `controller` from the previous step.
+    ```xml
+    <disk>
+        <driver name="qemu" type="qcow2" cache="writeback" io="threads" discard="unmap" queues="8"/>
+        ...
+    </disk>
+    ```
+**You must have `iothreadpin` in CPU pinning to perform this optimization.**
 
 ## Huge Pages
 Manjaro handles this by default. So no need to manually set this up.
