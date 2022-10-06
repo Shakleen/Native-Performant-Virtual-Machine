@@ -1,0 +1,10 @@
+Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 001 Device 009: ID 05ac:024f Apple, Inc. Aluminium Keyboard (ANSI)
+Bus 001 Device 008: ID 1532:006c Razer USA, Ltd Mamba Elite (Wired)
+Bus 001 Device 007: ID 214b:7250 Huasheng Electronics USB2.0 HUB
+Bus 001 Device 006: ID 1b1c:0a3b Corsair Corsair HS60 Surround Adapter
+Bus 001 Device 005: ID 28bd:0905 XP-Pen 10 inch PenTablet
+Bus 001 Device 004: ID 148f:7601 Ralink Technology, Corp. MT7601U Wireless Adapter
+Bus 001 Device 003: ID 1532:008a Razer USA, Ltd RZ01-0325, Gaming Mouse [Viper Mini]
+Bus 001 Device 002: ID 04a9:1913 Canon, Inc. CanoScan LiDE 300
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub

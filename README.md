@@ -439,6 +439,54 @@ Edit your VM XML to include the following tags:
 
 More information about these tweaks can be found [here](https://mathiashueber.com/performance-tweaks-gaming-on-virtual-machines/).
 
+# Quality of Life Upgrades
+
+## Keybinded Peripheral Swapping
+1. Execute `lsusb` to see the USB devices connected to the host machine. A sample output can be found [here](logs/lsusb.txt).
+    > * Bus [BUS NO] Device [DEVICE NO]: ID [VENDOR ID]:[PRODUCT ID] [DEVICE NAME]
+2. Note down the vendor and product ID for each device you want to swap.
+    > * I want to swap my keyboard (Device 009) and mouse (Device 008).
+    > * So I'll write down the IDs for those two devices.
+3. Create an xml for each device you wish to pass-through.
+    ```xml
+    <hostdev mode='subsystem' type='usb' managed='no'>
+        <source>
+            <!-- Replace [* ID] with appropriate values from step 2. -->
+            <vendor id='0x[VENDOR ID]'/> 
+            <product id='0x[PRODUCT ID]'/>
+        </source>
+    </hostdev>
+    ```
+    > Look at my [keyboad.xml]((scripts/usb_swapping/keyboard.xml)) and [mouse.xml](scripts/usb_swapping/mouse.xml) for example.
+4. Place scripts under the folder `~/.VFIOinput/`. You will need to create this folder.
+5. Now we need a bash script to dynamically attach the devices. Open `~/.VFIOinput/input_attach.sh` using nano and type the following commands in with the **PATH_XML** replaced with the path to file you created and **VM_NAME** replaced with the name of the VM you created.
+    ```bash
+    #!/bin/bash
+
+    virsh attach-device $VM_NAME $PATH_XML # One for each device being passed through
+    ```
+    > My attach script can be found [here](scripts/usb_swapping/input_attach.sh).
+6. Now duplicate the bash script previously created and replace `attach-device` with `detach-device`.
+    > My detach script can be found [here](scripts/usb_swapping/input_attach.sh).
+7. Make both these scripts executable by running `chmod +x` on them.
+8. These scripts need to be run as sudo and password needs to be entered as they are priviledged commands. We can avid having to type in the password by following this
+    1. Edit visudo by typing `sudo EDITOR=nano visudo`
+    2. Scroll to the very end and add 
+    ```bash
+    $username ALL=NOPASSWD:/home/$username/.VFIOinput/input_attach.sh,/home/$username/.VFIOinput/input_detach.sh
+    ```
+    Replace **$username** with your user name.
+9. In your windows VM
+    * Create a file called `detach_devices.bat` with the content "ssh [USER]@[IP] [COMMAND]"
+    * In place of [COMMAND] type in "sudo /home/ishrak/.VFIOinput/input_detach.sh"
+    * Next install `AutoHotKey` and create a key configuration to run this file.
+    * Go into `Task Scheduler` and [create an automated way to run this script at user log in.](https://www.howtogeek.com/138159/how-to-enable-programs-and-custom-scripts-to-run-at-boot/)
+10. In your linux machine
+    * Enable SSH. [Follow this](https://tuxfixer.com/configure-ssh-service-in-manjaro-linux/)
+    * In your manjaro keyboard shortcuts create a custom shortcut to run the command "sudo /home/ishrak/.VFIOinput/input_attach.sh".
+
+## Audio Passthrough
+
 # References
 * [PCI Passthrough via OVMF](https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF)
 * [GPU Passthrough Tutorial](https://github.com/bryansteiner/gpu-passthrough-tutorial#part2)

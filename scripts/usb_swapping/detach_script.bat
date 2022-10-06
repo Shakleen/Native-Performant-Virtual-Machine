@@ -1,0 +1,1 @@
+ssh ishrak@192.168.122.1 "sudo /home/ishrak/.VFIOinput/input_attach.sh"
